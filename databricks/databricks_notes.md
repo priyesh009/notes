@@ -1,3 +1,4 @@
+## DataBricks notes
 ### Mounting the Azure storage, in the notebook
 #### In scala
 val containerName = "files"
@@ -60,6 +61,7 @@ display(dfSchema)
 Python
 
 %python
+
 from pyspark.sql.types import *
 customSchemaPython = StructType (
   
@@ -82,9 +84,71 @@ customSchemaPython = StructType (
 )
 
 %python
+
 df = spark.read.format ("csv") \
 .options(header='true', delimiter = ',') \
 .schema(customSchemaPython) \
 .load("/mnt/files/Employee.csv")
 
 df.show()
+
+### Managed vs Unmanaged tables
+Managed tables are created from files in mounted place.
+when managed tables are dropped these files remains intact
+Un managed table on other are not created from files and when we drop these tables the files are also deleted from a auto assigned location
+
+
+create database datavoweldb;
+
+create table if not exists
+datavoweldb.employee
+(
+      Employee_id INT,
+      First_Name STRING,
+      Last_Name STRING ,  
+      Gender STRING,
+      Salary INT,
+      Date_of_Birth STRING,
+      Age INT,
+      Country STRING,
+      Department_id INT,
+      Date_of_Joining STRING,
+      Manager_id INT,
+      Currency STRING,
+      End_Date STRING 
+)
+using csv
+options (
+path '/mnt/files/Employee.csv',
+sep ',',
+header true
+)
+
+select * from datavoweldb.employee
+
+describe formatted datavoweldb.employee
+
+%fs ls /mnt/files   
+
+
+create table if not exists
+datavoweldb.m_employee
+(
+      Employee_id INT,
+      First_Name STRING,
+      Last_Name STRING ,  
+      Gender STRING,
+      Salary INT,
+      Date_of_Birth STRING,
+      Age INT,
+      Country STRING,
+      Department_id INT,
+      Date_of_Joining STRING,
+      Manager_id INT,
+      Currency STRING,
+      End_Date STRING 
+)
+
+insert into datavoweldb.m_employee select * from datavoweldb.employee
+
+describe formatted datavoweldb.m_employee
