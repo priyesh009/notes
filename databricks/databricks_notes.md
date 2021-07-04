@@ -1,5 +1,5 @@
-## DataBricks notes
-### Mounting the Azure storage, in the notebook
+# DataBricks notes
+## Mounting the Azure storage, in the notebook
 #### In scala
 val containerName = "files"
 val storageAccountName = "datavowelstorage9"
@@ -16,18 +16,18 @@ source = url,
 mountPoint = "/mnt/files",
 extraConfigs = Map(config -> sas))
 
-#### list the files in storage
+### list the files in storage
 
 %fs ls /mnt/files
 
-#### Read csv using Scala and Python
+### Read csv using Scala and Python
 
 val df = spark.read.option("header","true").csv("/mnt/files/Employee.csv")
 
 %python
 df = spark.read.csv("/mnt/files/Employee.csv", header = True)
 
-#### Assigin Schema to DF
+### Assigin Schema to DF
 
 Scala 
 
@@ -58,7 +58,7 @@ val dfSchema = spark.read
 
 display(dfSchema)
 
-Python
+#### Python
 
 %python
 
@@ -92,7 +92,7 @@ df = spark.read.format ("csv") \
 
 df.show()
 
-### Managed vs Unmanaged tables
+## Managed vs Unmanaged tables
 Managed tables are created from files in mounted place.
 when managed tables are dropped these files remains intact
 Un managed table on other are not created from files and when we drop these tables the files are also deleted from a auto assigned location
@@ -152,3 +152,84 @@ datavoweldb.m_employee
 insert into datavoweldb.m_employee select * from datavoweldb.employee
 
 describe formatted datavoweldb.m_employee
+
+## Operation in DataFrame
+### Filtering Dataframes with python
+
+#Filter DF
+df.filter("Department_id == 1").show()
+#OR
+df.where("Department_id == 1").show()
+
+df.filter("Department_id!= 1").show()
+
+df.filter("Department_id == 1" and "Employee_id==36").show()
+df.filter("Department_id == 1").filter( "Employee_id==36").show()
+
+#OR
+
+from pyspark.sql.functions import col
+#df.filter(df.Department_id == 1).show()
+df.filter(col("Department_id") == 1).show()
+
+### Is or not None/null
+
+ df.filter(df.Department_id.isNull()).show()
+ df.filter(df.Department_id.isNotNull()).show()
+
+### DF Select
+
+df.select("Employee_id","First_name").show()
+newdf.drop("Salary").show()
+
+### Change DataType
+
+df.withColumn("Department_id",col("Department_id").cast(IntegerType()))\
+  .withColumn("Employee_id",col("Employee_id").cast(IntegerType()))\
+  .printSchema()
+
+### Add columns and Rename
+
+df.withColumn("Added Column",col("First_Name")).show()
+newdf.withColumnRenamed("Salary", "New Name").show()
+
+## DF Window/aggregation functions
+
+### min, max, mean, count
+from pyspark.sql.functions import *
+df.select(max("Salary")).show()
+df.select(min("Salary")).show()
+df.select(mean("Salary")).show()
+df.select(count("Department_id")).show()
+df.select(countDistinct("Department_id")).show()
+
+### Sum
+
+df.select(sum("Department_id")).show()
+df.select(sumDistinct("Department_id")).show()
+
+### Muliple Agg at once
+
+#After groupBy you need to put agg 
+df.where("Department_id is not null")\
+  .groupBy("Department_id")\
+  .agg(countDistinct("Employee_id"))\
+  .select("Department_id", col("count(Employee_id)").alias("Number of emp"))\
+  .orderBy(desc("Department_id"))\
+  .show()
+
+
+### Over() Clause in pyspark
+
+from pyspark.sql.window import *
+from pyspark.sql.functions import *
+
+winFunc1cnt = Window.partitionBy("Country").orderBy(desc("Salary"))
+winFunc1min = Window.partitionBy("Country").orderBy("Salary")
+
+df.withColumn("MaxSalaryPerCountry", max("Salary").over(winFunc1cnt))\
+  .withColumn("MinSalaryPerCountry", min("Salary").over(winFunc1min))\
+  .orderBy("Last_Name").show()
+
+### Row number in pyspark
+
