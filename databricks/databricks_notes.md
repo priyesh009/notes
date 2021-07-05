@@ -232,4 +232,44 @@ df.withColumn("MaxSalaryPerCountry", max("Salary").over(winFunc1cnt))\
   .orderBy("Last_Name").show()
 
 ### Row number in pyspark
+from pyspark.sql.window import *
+from pyspark.sql.functions import *
+
+winFunc1cnt = Window.partitionBy("Country").orderBy(desc("Salary"))
+winFunc1min = Window.partitionBy("Country").orderBy("Salary")
+
+df.withColumn("MaxSalaryPerCountry", max("Salary").over(winFunc1cnt))\
+  .withColumn("MinSalaryPerCountry", min("Salary").over(winFunc1min))\
+  .withColumn("rownum", row_number().over(winFunc1cnt))\
+  .where(col("rownum") == 3)\  # to find person with 3rd highest Salary
+  .orderBy("Last_Name").show()
+
+
+### Rank and dense rank in pyspark
+winFun3 = Window.partitionBy("Country").orderBy("Gender")
+
+df.withColumn("Rank", rank().over(winFun3))\
+  .withColumn("DenseRnk", dense_rank().over(winFun3))\
+  .show()
+
+### Joins in pyspark
+from pyspark.sql.functions import col
+dfEmp.join(dfDept, dfEmp.id=dfDept.id,"inner")\
+
+
+
+## Temp and Global Team View in SQL
+### Temp Views
+These are session based views 
+df.createOrReplaceTempView('tmp')
+
+
+### Global Views
+Global Views can be accessed across the noteboooks
+
+df.createOrReplaceGlobalTempView('tmp')
+--To query Global temp view you need to specify the database global_temp
+
+select * from global_temp.gtmp
+
 
