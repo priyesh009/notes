@@ -273,3 +273,26 @@ df.createOrReplaceGlobalTempView('tmp')
 select * from global_temp.gtmp
 
 
+## XML Processing
+XML reader need root tag and a row tag
+
+### Reading file as text
+#Reading as text
+df = spark.read.text("/mnt/files/EMPXML.xml")
+
+### Reading xml and flatten it
+
+df = spark.read.format("com.databricks.spark.xml").option("rootTag", "dataset").option("rowTag","record").load("/mnt/files/EMPXML.xml")
+df.show()
+
+#Flatten the xml
+df.select("Age","Country","Currency","Customer.First_Name","Customer.Last_Name").show()
+
+## JSON Processing
+
+### Reading json and flatten it
+
+df = spark.read.json("/mnt/files/EMPJSON.json")
+df.select("Age","Country","Currency","Customer.First_Name","Customer.Last_Name").show()
+
+## Upsert and Merging in DF
