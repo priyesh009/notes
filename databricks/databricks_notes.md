@@ -296,3 +296,59 @@ df = spark.read.json("/mnt/files/EMPJSON.json")
 df.select("Age","Country","Currency","Customer.First_Name","Customer.Last_Name").show()
 
 ## Upsert and Merging in DF
+
+### createing tmp views of main table and delta table
+df.createOrReplaceTempView('tab')
+df.createOrReplaceTempView('ups')
+
+### Create Database AND DELTA TABLE
+
+CREATE DATABASE if NOT EXISTS DATAVOWELDB;
+USE DATAVOWELDB
+
+DROP TABLE IF EXISTS EMPLOYEE_DELTA_TABLE;
+
+CREATE TABLE EMPLOYEE_DELTA_TABLE
+USING DELTA
+PARTITIONED BY (DEPARTMENT_ID)
+LOCATION '/DATAVOWEL/DELTA/EMPLOYEE_DATA'
+
+AS(
+SELECT * FROM TAB WHERE DEPARTMENT_ID IS NOT NULL
+)
+
+### Merge Operation
+
+--In employee_delta table there are 988 rows 
+-- after doing merge operation 998 rows will be there and 7 rows will be updated (10 inserts and 7 updateds)
+
+MERGE INTO EMPLOYEE_DELTA_TABLE
+USING UPS
+
+ON EMPLOYEE_DELTA_TABLE.EMPLOYEE_ID = UPS.EMPLOYEE_ID  -- MERGE CONDITION
+
+WHEN MATCHED THEN 
+UPDATE SET 
+EMPLOYEE_DELTA_TABLE.LAST_NAME = UPS.LAST_NAME
+WHEN NOT MATCHED THEN
+  INSERT (Employee_id,First_Name,Last_Name,Gender,Salary,Date_of_Birth,Age,Country,Department_id,Date_of_Joining,Manager_id,Currency,End_Date)              
+  VALUES (Employee_id,First_Name,Last_Name,Gender,Salary,Date_of_Birth,Age,Country,Department_id,Date_of_Joining,Manager_id,Currency,End_Date)
+
+  ### Versioning in Detla table
+
+  SELECT * FROM EMPLOYEE_DELTA_TABLE version as of 0 -- this will have original version
+  SELECT * FROM EMPLOYEE_DELTA_TABLE version as of 1 -- this will have our updated version
+
+####  History of versions
+  describe history  EMPLOYEE_DELTA_TABLE 
+
+### Vacuum Operation
+this is used to delete data from all the versions of a table
+
+%fs ls /DATAVOWEL/DELTA/EMPLOYEE_DATA/_delta_log
+select * from employee_delta_table where employee_id in (21,35,45,47,49)
+UPDATE datavoweldb.EMPLOYEE_DELTA_TABLE SET First_Name = Null where employee_id in (21,35,45,47,49) 
+SET spark.databricks.delta.retentionDurationCheck.enabled = false
+VACUUM DATAVOWELDB.employee_delta_table RETAIN 0 HOURS
+SET spark.databricks.delta.retentionDurationCheck.enabled = false
+
