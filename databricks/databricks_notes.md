@@ -16,6 +16,9 @@ source = url,
 mountPoint = "/mnt/files",
 extraConfigs = Map(config -> sas))
 
+#### Unmount command
+dbutils.fs.unmount("/mnt/landing")
+
 ### list the files in storage
 
 %fs ls /mnt/files
@@ -351,4 +354,50 @@ UPDATE datavoweldb.EMPLOYEE_DELTA_TABLE SET First_Name = Null where employee_id 
 SET spark.databricks.delta.retentionDurationCheck.enabled = false
 VACUUM DATAVOWELDB.employee_delta_table RETAIN 0 HOURS
 SET spark.databricks.delta.retentionDurationCheck.enabled = false
+
+## Writing Data from Databricks to SQL server
+
+#### Scala
+%scala
+val dfCast = spark.sql("select cast(Employee_id as int),cast(Age as int),First_Name,Last_Name,Gender,cast(Salary as int),Date_Of_Birth,Country,cast(Department_id as int),Date_Of_Joining,cast(Manager_id as int),Currency,End_Date from EMP")
+
+
+%scala
+Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
+val jdbcUsername = dbutils.secrets.get(scope = "jdbc", key = "username")
+val jdbcPassword = dbutils.secrets.get(scope = "jdbc", key = "password")
+val jdbcHostname = "pridb.database.windows.net"
+val jdbcPort = 1433
+val jdbcDatabase = "datawarehousedb"
+
+// Create the JDBC URL without passing in the user and password parameters.
+val jdbcUrl = s"jdbc:sqlserver://${jdbcHostname}:${jdbcPort};database=${jdbcDatabase}"
+
+// Create a Properties() object to hold the parameters.
+import java.util.Properties
+val connectionProperties = new Properties()
+
+connectionProperties.put("user", s"${jdbcUsername}")
+connectionProperties.put("password", s"${jdbcPassword}")
+val driverClass = "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+connectionProperties.setProperty("Driver", driverClass)
+
+%scala
+dfCast
+.write
+.mode(SaveMode.Append) 
+.jdbc(jdbcUrl,"datawarehousedb.Employee",connectionProperties)
+
+#### Creating Delta table
+%scala
+dfCast.write.mode(SaveMode.Append).format("delta").saveAsTable("datawarehousedb.employee")  
+
+#### Python
+wititng data using pyspark
+https://stackoverflow.com/questions/30983982/how-to-use-jdbc-source-to-write-and-read-data-in-pyspark
+
+## Moving file between containers
+val fileNmA = dbutils.fs.ls("/mnt/landing").map(_.name).filter(r => r.startsWith("SourceA"))(0)
+val fileLocA = "dbfs:/mnt/landing/" + fileNmA
+dbutils.fs.mv(fileLocA, "dbfs:/mnt/archive")
 
